@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: visionguard-backend
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_PATH=/app/data/visionguard.db
+    volumes:
+      - visionguard-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: visionguard-frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  visionguard-data:

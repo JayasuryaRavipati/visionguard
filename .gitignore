@@ -1,0 +1,56 @@
+# Python
+backend/venv/
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+*.pyo
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python tooling
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ML / data cache
+ml/__pycache__/
+
+# Docker
+docker-compose.override.yml
+
+# Generated ML datasets
+ml/dataset/generated/
+
+# ML image datasets
+ml/dataset/generated/
+ml/dataset/clean/**/*.jpg
+ml/dataset/clean/**/*.jpeg
+ml/dataset/clean/**/*.png

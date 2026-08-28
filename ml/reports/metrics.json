@@ -1,0 +1,67 @@
+{
+    "accuracy": 0.7230769230769231,
+    "precision_weighted": 0.7192981028206115,
+    "recall_weighted": 0.7230769230769231,
+    "f1_weighted": 0.7192390934075081,
+    "classification_report": {
+        "ACCEPTABLE": {
+            "precision": 0.4375,
+            "recall": 0.35,
+            "f1-score": 0.3888888888888889,
+            "support": 40.0
+        },
+        "DEFECTIVE": {
+            "precision": 0.8521739130434782,
+            "recall": 0.8166666666666667,
+            "f1-score": 0.8340425531914893,
+            "support": 120.0
+        },
+        "DEGRADED": {
+            "precision": 0.672566371681416,
+            "recall": 0.76,
+            "f1-score": 0.7136150234741784,
+            "support": 100.0
+        },
+        "accuracy": 0.7230769230769231,
+        "macro avg": {
+            "precision": 0.6540800949082981,
+            "recall": 0.6422222222222221,
+            "f1-score": 0.6455154885181855,
+            "support": 260.0
+        },
+        "weighted avg": {
+            "precision": 0.7192981028206115,
+            "recall": 0.7230769230769231,
+            "f1-score": 0.7192390934075081,
+            "support": 260.0
+        }
+    },
+    "confusion_matrix": [
+        [
+            14,
+            22,
+            4
+        ],
+        [
+            11,
+            76,
+            13
+        ],
+        [
+            7,
+            15,
+            98
+        ]
+    ],
+    "feature_importance": {
+        "sharpness": 0.225111,
+        "noise": 0.182533,
+        "unique_intensity_values": 0.173047,
+        "brightness": 0.137866,
+        "contrast": 0.10187,
+        "intensity_std": 0.101773,
+        "aspect_ratio": 0.035384,
+        "height": 0.025762,
+        "width": 0.016652
+    }
+}
