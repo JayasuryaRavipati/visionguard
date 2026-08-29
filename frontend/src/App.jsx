@@ -4,99 +4,594 @@ import "./App.css";
 function App() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+
   const [result, setResult] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] =
+    useState(false);
 
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
+  const [showUploadModal, setShowUploadModal] =
+    useState(false);
 
-    setResult(null);
-    setError("");
+  const [selectedHistory, setSelectedHistory] =
+    useState(null);
 
-    if (!selectedFile) {
-      setFile(null);
-      setPreview(null);
-      return;
+  const [showHistoryModal, setShowHistoryModal] =
+    useState(false);
+
+  const [
+    historyDetailsLoading,
+    setHistoryDetailsLoading,
+  ] = useState(false);
+
+  // =========================================================
+  // HELPERS
+  // =========================================================
+
+  const formatLabel = (value) => {
+    if (!value) {
+      return "N/A";
     }
 
-    setFile(selectedFile);
-    setPreview(URL.createObjectURL(selectedFile));
+    return String(value)
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (letter) =>
+        letter.toUpperCase()
+      );
   };
 
-  const fetchHistory = async () => {
+  const formatFileSize = (sizeBytes) => {
+    if (
+      sizeBytes === undefined ||
+      sizeBytes === null
+    ) {
+      return "N/A";
+    }
+
+    const size = Number(sizeBytes);
+
+    if (Number.isNaN(size)) {
+      return "N/A";
+    }
+
+    if (size < 1024) {
+      return `${size} B`;
+    }
+
+    if (size < 1024 * 1024) {
+      return `${(
+        size / 1024
+      ).toFixed(2)} KB`;
+    }
+
+    return `${(
+      size /
+      (1024 * 1024)
+    ).toFixed(2)} MB`;
+  };
+
+  const formatConfidence = (
+    confidence
+  ) => {
+    if (
+      confidence === undefined ||
+      confidence === null
+    ) {
+      return "N/A";
+    }
+
+    const value = Number(
+      confidence
+    );
+
+    if (Number.isNaN(value)) {
+      return "N/A";
+    }
+
+    if (value <= 1) {
+      return `${(
+        value * 100
+      ).toFixed(1)}%`;
+    }
+
+    return `${value.toFixed(
+      1
+    )}%`;
+  };
+
+  const getDetectedIssues = (
+    issues
+  ) => {
+    if (!issues) {
+      return [];
+    }
+
+    if (Array.isArray(issues)) {
+      return issues;
+    }
+
+    return Object.entries(
+      issues
+    )
+      .filter(
+        ([, issue]) =>
+          issue?.detected
+      )
+      .map(
+        ([name, issue]) => ({
+          name,
+          ...issue,
+        })
+      );
+  };
+
+  const getIssueName = (
+    issue,
+    index = 0
+  ) => {
+    return (
+      issue?.label ||
+      issue?.name ||
+      issue?.key ||
+      `Issue ${index + 1}`
+    );
+  };
+
+  const getFilename = (
+    item
+  ) => {
+    return (
+      item?.image?.filename ||
+      item?.filename ||
+      "Image"
+    );
+  };
+
+  const normalizeHistory = (
+    data
+  ) => {
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    if (
+      Array.isArray(
+        data?.results
+      )
+    ) {
+      return data.results;
+    }
+
+    if (
+      Array.isArray(
+        data?.items
+      )
+    ) {
+      return data.items;
+    }
+
+    if (
+      Array.isArray(
+        data?.analyses
+      )
+    ) {
+      return data.analyses;
+    }
+
+    if (
+      Array.isArray(
+        data?.data
+      )
+    ) {
+      return data.data;
+    }
+
+    return [];
+  };
+
+  // =========================================================
+  // SAFE JSON
+  // =========================================================
+
+  const parseResponse = async (
+    response
+  ) => {
+    const text =
+      await response.text();
+
+    if (!text) {
+      return null;
+    }
+
     try {
-      setHistoryLoading(true);
+      return JSON.parse(
+        text
+      );
+    } catch {
+      throw new Error(
+        `Server returned invalid JSON. Status: ${response.status}`
+      );
+    }
+  };
 
-     const response = await fetch(
-  "/api/history"
-);
+  // =========================================================
+  // HISTORY
+  // =========================================================
 
-      if (!response.ok) {
-        throw new Error("Could not load history.");
+  const fetchHistory =
+    async () => {
+      try {
+        setHistoryLoading(
+          true
+        );
+
+        const response =
+          await fetch(
+            "/api/history"
+          );
+
+        const data =
+          await parseResponse(
+            response
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            data?.detail ||
+              `Could not load history. Status: ${response.status}`
+          );
+        }
+
+        const items =
+          normalizeHistory(
+            data
+          );
+
+        setHistory(
+          items
+        );
+      } catch (err) {
+        console.error(
+          "History error:",
+          err
+        );
+
+        setHistory([]);
+      } finally {
+        setHistoryLoading(
+          false
+        );
+      }
+    };
+
+  // =========================================================
+  // HISTORY DETAILS
+  // =========================================================
+
+  const openHistoryDetails =
+    async (item) => {
+      setSelectedHistory(
+        item
+      );
+
+      setShowHistoryModal(
+        true
+      );
+
+      setHistoryDetailsLoading(
+        true
+      );
+
+      try {
+        const response =
+          await fetch(
+            `/api/history/${item.id}`
+          );
+
+        const data =
+          await parseResponse(
+            response
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            data?.detail ||
+              `Could not load analysis details. Status: ${response.status}`
+          );
+        }
+
+        if (data) {
+          setSelectedHistory(
+            data
+          );
+        }
+      } catch (err) {
+        console.error(
+          "History details error:",
+          err
+        );
+
+        setSelectedHistory(
+          item
+        );
+      } finally {
+        setHistoryDetailsLoading(
+          false
+        );
+      }
+    };
+
+  const closeHistoryDetails =
+    () => {
+      setShowHistoryModal(
+        false
+      );
+
+      setSelectedHistory(
+        null
+      );
+
+      setHistoryDetailsLoading(
+        false
+      );
+    };
+
+  // =========================================================
+  // FILE
+  // =========================================================
+
+  const handleFileChange =
+    (event) => {
+      const selectedFile =
+        event.target.files?.[0];
+
+      setError("");
+
+      if (!selectedFile) {
+        return;
       }
 
-      const data = await response.json();
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ];
 
-      setHistory(data.results || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
+      if (
+        !allowedTypes.includes(
+          selectedFile.type
+        )
+      ) {
+        setError(
+          "Please select a JPEG, PNG or WEBP image."
+        );
 
-  const handleAnalyze = async () => {
-    if (!file) {
-      setError("Please select an image first.");
-      return;
-    }
+        event.target.value =
+          "";
 
-    setLoading(true);
-    setError("");
-    setResult(null);
+        return;
+      }
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const maxSize =
+        10 *
+        1024 *
+        1024;
 
-      const response = await fetch(
-  "/api/analyze",
-  {
-    method: "POST",
-    body: formData,
-  }
-);
+      if (
+        selectedFile.size >
+        maxSize
+      ) {
+        setError(
+          "Image size must be less than 10 MB."
+        );
 
-      if (!response.ok) {
-        const errorData = await response.json();
+        event.target.value =
+          "";
 
-        throw new Error(
-          errorData.detail || "Image analysis failed."
+        return;
+      }
+
+      if (preview) {
+        URL.revokeObjectURL(
+          preview
         );
       }
 
-      const data = await response.json();
+      setFile(
+        selectedFile
+      );
 
-      setResult(data.analysis);
+      setPreview(
+        URL.createObjectURL(
+          selectedFile
+        )
+      );
 
-      await fetchHistory();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      event.target.value =
+        "";
+    };
+
+  const clearSelectedImage =
+    () => {
+      if (preview) {
+        URL.revokeObjectURL(
+          preview
+        );
+      }
+
+      setFile(null);
+      setPreview(null);
+      setError("");
+    };
+
+  // =========================================================
+  // UPLOAD MODAL
+  // =========================================================
+
+  const openUploadModal =
+    () => {
+      setError("");
+      setShowUploadModal(
+        true
+      );
+    };
+
+  const closeUploadModal =
+    () => {
+      if (loading) {
+        return;
+      }
+
+      setShowUploadModal(
+        false
+      );
+
+      setError("");
+    };
+
+  // =========================================================
+  // ANALYZE
+  // =========================================================
+
+  const handleAnalyze =
+    async () => {
+      if (!file) {
+        setError(
+          "Please upload an image first."
+        );
+
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      setResult(null);
+
+      try {
+        const formData =
+          new FormData();
+
+        formData.append(
+          "file",
+          file
+        );
+
+        const response =
+          await fetch(
+            "/api/analyze",
+            {
+              method:
+                "POST",
+              body:
+                formData,
+            }
+          );
+
+        const data =
+          await parseResponse(
+            response
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            data?.detail ||
+              `Image analysis failed. Status: ${response.status}`
+          );
+        }
+
+        if (!data) {
+          throw new Error(
+            "The server returned an empty response."
+          );
+        }
+
+        const analysis = {
+          ...data,
+          ...(data.analysis ||
+            {}),
+        };
+
+        if (
+          analysis.quality_score ===
+          undefined
+        ) {
+          throw new Error(
+            "The server response does not contain quality analysis results."
+          );
+        }
+
+        setResult(
+          analysis
+        );
+
+        await fetchHistory();
+
+        setShowUploadModal(
+          false
+        );
+      } catch (err) {
+        console.error(
+          "Analysis error:",
+          err
+        );
+
+        setError(
+          err.message ||
+            "Something went wrong while analyzing the image."
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
+
+  // =========================================================
+  // EFFECTS
+  // =========================================================
 
   useEffect(() => {
     fetchHistory();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(
+          preview
+        );
+      }
+    };
+  }, [preview]);
+
+  // =========================================================
+  // CURRENT RESULT
+  // =========================================================
+
+  const currentIssues =
+    getDetectedIssues(
+      result?.issues
+    );
+
+  const currentStatistics =
+    Array.isArray(
+      result?.statistics
+    )
+      ? result.statistics
+      : null;
+
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <div className="app">
+      {/* HEADER */}
+
       <header className="header">
         <div className="header-content">
           <div className="brand">
@@ -105,119 +600,69 @@ function App() {
             </div>
 
             <div>
-              <h1>VisionGuard</h1>
+              <h1>
+                VisionGuard
+              </h1>
 
               <p>
-                AI-Powered Image Quality & Defect Detection
+                AI-Powered
+                Image Quality &
+                Defect Detection
               </p>
             </div>
           </div>
 
           <div className="header-badge">
-            AI Quality Inspector
+            AI Quality
+            Inspector
           </div>
         </div>
       </header>
 
       <main className="container">
-        {/* Upload Section */}
+        {/* UPLOAD */}
 
-        <section className="upload-card">
-          <div className="upload-heading">
-            <div>
-              <p className="eyebrow">
-                IMAGE INSPECTION
-              </p>
+        <section className="inspection-launch-card">
+          <div className="inspection-launch-content">
+            <p className="eyebrow">
+              AI IMAGE
+              INSPECTION
+            </p>
 
-              <h2>
-                Analyze Image Quality
-              </h2>
+            <h2>
+              Inspect Image
+              Quality & Defects
+            </h2>
 
-              <p className="upload-description">
-                Upload an image to detect blur,
-                exposure problems, noise and severe
-                visual degradation using computer
-                vision and machine learning.
-              </p>
-            </div>
+            <p className="inspection-launch-description">
+              Analyze image
+              sharpness,
+              exposure, noise,
+              degradation and
+              potential visual
+              defects using
+              computer vision
+              and machine
+              learning.
+            </p>
+
+            <button
+              type="button"
+              className="open-upload-button"
+              onClick={
+                openUploadModal
+              }
+            >
+              <span className="button-upload-icon">
+                ↑
+              </span>
+
+              Upload Image
+            </button>
           </div>
-
-          <label className="upload-box">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleFileChange}
-            />
-
-            <div className="upload-icon">
-              ↑
-            </div>
-
-            <strong>
-              {file
-                ? file.name
-                : "Drop an image here or click to browse"}
-            </strong>
-
-            <span>
-              JPEG, PNG or WEBP · Maximum 10 MB
-            </span>
-          </label>
-
-          {preview && (
-            <div className="selected-image-card">
-              <div className="preview-wrapper">
-                <img
-                  src={preview}
-                  alt="Selected preview"
-                  className="preview-image"
-                />
-              </div>
-
-              <div className="selected-image-info">
-                <span>
-                  Selected image
-                </span>
-
-                <strong>
-                  {file?.name}
-                </strong>
-
-                <small>
-                  {file
-                    ? `${(
-                        file.size /
-                        (1024 * 1024)
-                      ).toFixed(2)} MB`
-                    : ""}
-                </small>
-              </div>
-            </div>
-          )}
-
-          <button
-            className="analyze-button"
-            onClick={handleAnalyze}
-            disabled={loading || !file}
-          >
-            {loading ? (
-              <>
-                <span className="spinner" />
-                Analyzing Image...
-              </>
-            ) : (
-              "Analyze Image"
-            )}
-          </button>
-
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
         </section>
 
-        {/* Result Section */}
+        {/* CURRENT RESULTS */}
 
         {result && (
           <section className="results-section">
@@ -227,13 +672,19 @@ function App() {
                   className="score-circle"
                   style={{
                     "--score": `${
-                      result.quality_score * 3.6
+                      Number(
+                        result.quality_score
+                      ) * 3.6
                     }deg`,
                   }}
                 >
                   <div className="score-inner">
                     <strong>
-                      {result.quality_score}
+                      {Number(
+                        result.quality_score
+                      ).toFixed(
+                        2
+                      )}
                     </strong>
 
                     <span>
@@ -244,15 +695,19 @@ function App() {
 
                 <div>
                   <p className="result-label">
-                    Overall Quality
+                    Overall
+                    Quality
                   </p>
 
                   <div
                     className={`quality-badge ${
-                      result.quality_label?.toLowerCase()
+                      result.quality_label
+                        ?.toLowerCase() ||
+                      ""
                     }`}
                   >
-                    {result.quality_label}
+                    {result.quality_label ||
+                      "N/A"}
                   </div>
                 </div>
               </div>
@@ -264,27 +719,41 @@ function App() {
                   </span>
 
                   <strong>
-                    {result.confidence !== undefined
-                      ? `${(
-                          result.confidence * 100
-                        ).toFixed(1)}%`
+                    {formatConfidence(
+                      result.confidence
+                    )}
+                  </strong>
+                </div>
+
+                <div className="summary-card">
+                  <span>
+                    Score
+                    Uncertainty
+                  </span>
+
+                  <strong>
+                    {result.score_uncertainty !==
+                      undefined &&
+                    result.score_uncertainty !==
+                      null
+                      ? `±${Number(
+                          result.score_uncertainty
+                        ).toFixed(
+                          1
+                        )}`
                       : "N/A"}
                   </strong>
                 </div>
 
                 <div className="summary-card">
                   <span>
-                    Detected Issues
+                    Detected
+                    Issues
                   </span>
 
                   <strong>
                     {
-                      Object.values(
-                        result.issues || {}
-                      ).filter(
-                        (issue) =>
-                          issue.detected
-                      ).length
+                      currentIssues.length
                     }
                   </strong>
                 </div>
@@ -295,194 +764,261 @@ function App() {
                   </span>
 
                   <strong className="model-name">
-                    {result.ml_prediction
-                      ?.model_type || "N/A"}
+                    {result
+                      .ml_prediction
+                      ?.model_type ||
+                      "N/A"}
                   </strong>
                 </div>
               </div>
             </div>
 
-            {/* Issues */}
+            {/* ISSUES */}
 
             <div className="section-card">
               <h3>
                 Detected Issues
               </h3>
 
-              {Object.entries(
-                result.issues || {}
-              ).filter(
-                ([, issue]) =>
-                  issue.detected
-              ).length > 0 ? (
+              {currentIssues.length >
+              0 ? (
                 <div className="issue-list">
-                  {Object.entries(
-                    result.issues || {}
-                  )
-                    .filter(
-                      ([, issue]) =>
-                        issue.detected
-                    )
-                    .map(
-                      ([name, issue]) => (
-                        <div
-                          key={name}
-                          className={`issue-item severity-${issue.severity}`}
-                        >
-                          <div>
-                            <strong>
-                              {name
-                                .replaceAll(
-                                  "_",
-                                  " "
-                                )
-                                .toUpperCase()}
-                            </strong>
+                  {currentIssues.map(
+                    (
+                      issue,
+                      index
+                    ) => (
+                      <div
+                        key={
+                          issue.name ||
+                          index
+                        }
+                        className={`issue-item severity-${
+                          issue.severity ||
+                          "none"
+                        }`}
+                      >
+                        <div>
+                          <strong>
+                            {getIssueName(
+                              issue,
+                              index
+                            )
+                              .replaceAll(
+                                "_",
+                                " "
+                              )
+                              .toUpperCase()}
+                          </strong>
 
+                          {issue.confidence !==
+                            undefined && (
                             <p>
                               Confidence:{" "}
-                              {(
-                                issue.confidence *
-                                100
-                              ).toFixed(1)}
-                              %
+                              {formatConfidence(
+                                issue.confidence
+                              )}
                             </p>
-                          </div>
-
-                          <span className="severity-badge">
-                            {issue.severity?.toUpperCase()}
-                          </span>
+                          )}
                         </div>
-                      )
-                    )}
+
+                        <span className="severity-badge">
+                          {issue.severity
+                            ? String(
+                                issue.severity
+                              ).toUpperCase()
+                            : "DETECTED"}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               ) : (
                 <div className="success-box">
-                  No significant quality issues
+                  No significant
+                  quality issues
                   detected.
                 </div>
               )}
             </div>
 
-            {/* Probabilities */}
+            {/* ML PROBABILITIES */}
 
-            {result.ml_prediction
+            {result
+              .ml_prediction
               ?.probabilities && (
               <div className="section-card">
                 <h3>
-                  AI Prediction Probabilities
+                  AI Prediction
+                  Probabilities
                 </h3>
 
                 <div className="probability-list">
                   {Object.entries(
-                    result.ml_prediction
+                    result
+                      .ml_prediction
                       .probabilities
                   ).map(
                     ([
                       label,
                       probability,
-                    ]) => (
-                      <div
-                        className="probability-item"
-                        key={label}
-                      >
-                        <div className="probability-header">
-                          <span>
-                            {label}
-                          </span>
+                    ]) => {
+                      const value =
+                        Number(
+                          probability
+                        );
 
-                          <strong>
-                            {(
-                              probability *
-                              100
-                            ).toFixed(1)}
-                            %
-                          </strong>
-                        </div>
+                      const percent =
+                        value <= 1
+                          ? value *
+                            100
+                          : value;
 
-                        <div className="progress-track">
-                          <div
-                            className={`progress-fill ${label.toLowerCase()}`}
-                            style={{
-                              width: `${
-                                probability *
-                                100
-                              }%`,
-                            }}
-                          />
+                      return (
+                        <div
+                          key={
+                            label
+                          }
+                          className="probability-item"
+                        >
+                          <div className="probability-header">
+                            <span>
+                              {
+                                label
+                              }
+                            </span>
+
+                            <strong>
+                              {percent.toFixed(
+                                1
+                              )}
+                              %
+                            </strong>
+                          </div>
+
+                          <div className="progress-track">
+                            <div
+                              className={`progress-fill ${label.toLowerCase()}`}
+                              style={{
+                                width: `${Math.min(
+                                  percent,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
                 </div>
               </div>
             )}
 
-            {/* Statistics */}
+            {/* STATISTICS */}
 
             <div className="section-card">
               <h3>
-                Image Statistics
+                Image
+                Statistics
               </h3>
 
               <div className="statistics-grid">
-                {Object.entries(
-                  result.image_statistics ||
-                    {}
-                ).map(([key, value]) => (
-                  <div
-                    className="stat-card"
-                    key={key}
-                  >
-                    <span>
-                      {key
-                        .replaceAll(
-                          "_",
-                          " "
-                        )
-                        .replace(
-                          /\b\w/g,
-                          (letter) =>
-                            letter.toUpperCase()
-                        )}
-                    </span>
+                {currentStatistics
+                  ? currentStatistics.map(
+                      (stat) => (
+                        <div
+                          className="stat-card"
+                          key={
+                            stat.key
+                          }
+                        >
+                          <span>
+                            {stat.label ||
+                              formatLabel(
+                                stat.key
+                              )}
+                          </span>
 
-                    <strong>
-                      {typeof value ===
-                      "number"
-                        ? value.toFixed(2)
-                        : value}
-                    </strong>
-                  </div>
-                ))}
+                          <strong>
+                            {typeof stat.value ===
+                            "number"
+                              ? stat.value.toFixed(
+                                  2
+                                )
+                              : stat.value}
+                          </strong>
+                        </div>
+                      )
+                    )
+                  : Object.entries(
+                      result.image_statistics ||
+                        {}
+                    ).map(
+                      ([
+                        key,
+                        value,
+                      ]) => (
+                        <div
+                          className="stat-card"
+                          key={
+                            key
+                          }
+                        >
+                          <span>
+                            {formatLabel(
+                              key
+                            )}
+                          </span>
+
+                          <strong>
+                            {typeof value ===
+                            "number"
+                              ? value.toFixed(
+                                  2
+                                )
+                              : value}
+                          </strong>
+                        </div>
+                      )
+                    )}
               </div>
             </div>
           </section>
         )}
 
-        {/* History Section */}
+        {/* HISTORY */}
 
         <section className="history-section">
           <div className="history-header">
             <div>
               <p className="eyebrow">
-                RECENT ANALYSES
+                RECENT
+                ANALYSES
               </p>
 
               <h2>
-                Analysis History
+                Analysis
+                History
               </h2>
 
               <p>
-                Review previously analyzed images
-                and their quality results.
+                Click any
+                analysis to
+                view complete
+                details.
               </p>
             </div>
 
             <button
+              type="button"
               className="refresh-button"
-              onClick={fetchHistory}
-              disabled={historyLoading}
+              onClick={
+                fetchHistory
+              }
+              disabled={
+                historyLoading
+              }
             >
               {historyLoading
                 ? "Refreshing..."
@@ -491,19 +1027,27 @@ function App() {
           </div>
 
           {historyLoading &&
-          history.length === 0 ? (
+          history.length ===
+            0 ? (
             <div className="empty-history">
-              Loading analysis history...
+              Loading
+              analysis
+              history...
             </div>
-          ) : history.length === 0 ? (
+          ) : history.length ===
+            0 ? (
             <div className="empty-history">
               <strong>
-                No analysis history yet
+                No analysis
+                history yet
               </strong>
 
               <p>
-                Analyze your first image and the
-                result will appear here.
+                Analyze your
+                first image
+                and the result
+                will appear
+                here.
               </p>
             </div>
           ) : (
@@ -511,137 +1055,811 @@ function App() {
               <table className="history-table">
                 <thead>
                   <tr>
-                    <th>Image</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th>Confidence</th>
-                    <th>Issues</th>
-                    <th>Analyzed</th>
+                    <th>
+                      Image
+                    </th>
+
+                    <th>
+                      Score
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      ML
+                      Confidence
+                    </th>
+
+                    <th>
+                      Uncertainty
+                    </th>
+
+                    <th>
+                      Issues
+                    </th>
+
+                    <th>
+                      Analyzed
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {history.map((item) => {
-                    const detectedIssues =
-                      Object.entries(
-                        item.issues || {}
-                      ).filter(
-                        ([, issue]) =>
-                          issue.detected
-                      );
+                  {history.map(
+                    (item) => {
+                      const issues =
+                        getDetectedIssues(
+                          item.issues
+                        );
 
-                    return (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="history-file">
-                            <div className="file-icon">
-                              IMG
-                            </div>
+                      return (
+                        <tr
+                          key={
+                            item.id
+                          }
+                          className="clickable-history-row"
+                          onClick={() =>
+                            openHistoryDetails(
+                              item
+                            )
+                          }
+                        >
+                          <td>
+                            <div className="history-file">
+                              <div className="file-icon">
+                                IMG
+                              </div>
 
-                            <div>
-                              <strong>
-                                {item.filename ||
-                                  "Image"}
-                              </strong>
+                              <div>
+                                <strong>
+                                  {getFilename(
+                                    item
+                                  )}
+                                </strong>
 
-                              <span>
-                                ID #{item.id}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td>
-                          <strong className="history-score">
-                            {Number(
-                              item.quality_score
-                            ).toFixed(2)}
-                          </strong>
-
-                          <span className="score-out-of">
-                            /100
-                          </span>
-                        </td>
-
-                        <td>
-                          <span
-                            className={`table-status ${
-                              item.quality_label?.toLowerCase()
-                            }`}
-                          >
-                            {
-                              item.quality_label
-                            }
-                          </span>
-                        </td>
-
-                        <td>
-                          {item.confidence !==
-                            undefined &&
-                          item.confidence !==
-                            null
-                            ? `${(
-                                item.confidence *
-                                100
-                              ).toFixed(1)}%`
-                            : "N/A"}
-                        </td>
-
-                        <td>
-                          {detectedIssues.length >
-                          0 ? (
-                            <div className="history-issues">
-                              {detectedIssues
-                                .slice(0, 2)
-                                .map(
-                                  ([name]) => (
-                                    <span
-                                      key={
-                                        name
-                                      }
-                                    >
-                                      {name
-                                        .replaceAll(
-                                          "_",
-                                          " "
-                                        )
-                                        .toUpperCase()}
-                                    </span>
-                                  )
-                                )}
-
-                              {detectedIssues.length >
-                                2 && (
                                 <span>
-                                  +
-                                  {detectedIssues.length -
-                                    2}
+                                  ID #
+                                  {
+                                    item.id
+                                  }
                                 </span>
-                              )}
+                              </div>
                             </div>
-                          ) : (
-                            <span className="no-issues">
-                              None
-                            </span>
-                          )}
-                        </td>
+                          </td>
 
-                        <td className="history-date">
-                          {item.created_at
-                            ? new Date(
-                                item.created_at
-                              ).toLocaleString()
-                            : "N/A"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td>
+                            <strong className="history-score">
+                              {Number(
+                                item.quality_score
+                              ).toFixed(
+                                2
+                              )}
+                            </strong>
+
+                            <span className="score-out-of">
+                              /100
+                            </span>
+                          </td>
+
+                          <td>
+                            <span
+                              className={`table-status ${
+                                item.quality_label
+                                  ?.toLowerCase() ||
+                                ""
+                              }`}
+                            >
+                              {item.quality_label ||
+                                "N/A"}
+                            </span>
+                          </td>
+
+                          <td>
+                            {formatConfidence(
+                              item.confidence
+                            )}
+                          </td>
+
+                          <td>
+                            {item.score_uncertainty !==
+                              undefined &&
+                            item.score_uncertainty !==
+                              null
+                              ? `±${Number(
+                                  item.score_uncertainty
+                                ).toFixed(
+                                  1
+                                )}`
+                              : "N/A"}
+                          </td>
+
+                          <td>
+                            {issues.length >
+                            0 ? (
+                              <div className="history-issues">
+                                {issues
+                                  .slice(
+                                    0,
+                                    2
+                                  )
+                                  .map(
+                                    (
+                                      issue,
+                                      index
+                                    ) => (
+                                      <span
+                                        key={
+                                          issue.name ||
+                                          index
+                                        }
+                                      >
+                                        {getIssueName(
+                                          issue,
+                                          index
+                                        )
+                                          .replaceAll(
+                                            "_",
+                                            " "
+                                          )
+                                          .toUpperCase()}
+                                      </span>
+                                    )
+                                  )}
+
+                                {issues.length >
+                                  2 && (
+                                  <span>
+                                    +
+                                    {issues.length -
+                                      2}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="no-issues">
+                                None
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="history-date">
+                            {item.created_at
+                              ? new Date(
+                                  item.created_at
+                                ).toLocaleString()
+                              : "N/A"}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </section>
       </main>
+
+      {/* UPLOAD MODAL */}
+
+      {showUploadModal && (
+        <div
+          className="modal-overlay"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeUploadModal();
+            }
+          }}
+        >
+          <div className="inspection-modal">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">
+                  IMAGE
+                  INSPECTION
+                </p>
+
+                <h2>
+                  Analyze Image
+                  Quality
+                </h2>
+
+                <p>
+                  Upload an
+                  image to
+                  inspect
+                  quality and
+                  potential
+                  defects.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={
+                  closeUploadModal
+                }
+                disabled={
+                  loading
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            {!preview ? (
+              <label className="modal-upload-box">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={
+                    handleFileChange
+                  }
+                />
+
+                <div className="modal-upload-icon">
+                  ↑
+                </div>
+
+                <strong>
+                  Upload Image
+                </strong>
+
+                <p>
+                  Drop an image
+                  here or click
+                  to browse
+                </p>
+
+                <span>
+                  JPEG, PNG or
+                  WEBP ·
+                  Maximum 10 MB
+                </span>
+              </label>
+            ) : (
+              <div className="modal-preview-section">
+                <div className="modal-preview-wrapper">
+                  <img
+                    src={
+                      preview
+                    }
+                    alt="Selected"
+                    className="modal-preview-image"
+                  />
+                </div>
+
+                <div className="modal-file-details">
+                  <div>
+                    <span>
+                      Selected
+                      image
+                    </span>
+
+                    <strong>
+                      {file?.name}
+                    </strong>
+                  </div>
+
+                  <span className="modal-file-size">
+                    {file
+                      ? formatFileSize(
+                          file.size
+                        )
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="error-message modal-error">
+                {error}
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <label className="modal-secondary-button">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={
+                    handleFileChange
+                  }
+                  disabled={
+                    loading
+                  }
+                />
+
+                {file
+                  ? "Change Image"
+                  : "Upload"}
+              </label>
+
+              {file && (
+                <button
+                  type="button"
+                  className="modal-remove-button"
+                  onClick={
+                    clearSelectedImage
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Remove
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="modal-analyze-button"
+                onClick={
+                  handleAnalyze
+                }
+                disabled={
+                  loading ||
+                  !file
+                }
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner" />
+                    Analyzing...
+                  </>
+                ) : (
+                  "Analyze"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HISTORY DETAILS MODAL */}
+
+      {showHistoryModal &&
+        selectedHistory && (
+          <div
+            className="modal-overlay history-modal-overlay"
+            onMouseDown={(
+              event
+            ) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                closeHistoryDetails();
+              }
+            }}
+          >
+            <div className="history-details-modal">
+              <div className="history-details-header">
+                <div>
+                  <p className="eyebrow">
+                    ANALYSIS
+                    DETAILS
+                  </p>
+
+                  <h2>
+                    Image
+                    Inspection
+                    Report
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close-button"
+                  onClick={
+                    closeHistoryDetails
+                  }
+                >
+                  ×
+                </button>
+              </div>
+
+              {historyDetailsLoading && (
+                <div className="history-details-loading">
+                  Loading full
+                  analysis
+                  details...
+                </div>
+              )}
+
+              <div className="history-details-split">
+                {/* IMAGE */}
+
+                <div className="history-image-panel">
+                  <div className="history-image-preview">
+                    {selectedHistory.image_url ? (
+                      <img
+                        src={
+                          selectedHistory.image_url
+                        }
+                        alt={
+                          getFilename(
+                            selectedHistory
+                          )
+                        }
+                        className="history-preview-img"
+                      />
+                    ) : (
+                      <div className="history-image-placeholder">
+                        <div>
+                          IMG
+                        </div>
+
+                        <p>
+                          Image
+                          preview is
+                          unavailable.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="history-image-info">
+                    <strong>
+                      {getFilename(
+                        selectedHistory
+                      )}
+                    </strong>
+
+                    <span>
+                      Analysis ID:{" "}
+                      {
+                        selectedHistory.id
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                {/* SUMMARY */}
+
+                <div className="history-summary-panel">
+                  <div className="history-summary-heading">
+                    <span>
+                      ANALYSIS
+                      SUMMARY
+                    </span>
+                  </div>
+
+                  <div className="history-detail-score">
+                    <div>
+                      <span>
+                        Quality
+                        Score
+                      </span>
+
+                      <strong>
+                        {Number(
+                          selectedHistory.quality_score
+                        ).toFixed(
+                          2
+                        )}
+                      </strong>
+                    </div>
+
+                    <span
+                      className={`table-status ${
+                        selectedHistory.quality_label
+                          ?.toLowerCase() ||
+                        ""
+                      }`}
+                    >
+                      {selectedHistory.quality_label ||
+                        "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="history-detail-grid">
+                    <div className="history-detail-card">
+                      <span>
+                        ML
+                        Confidence
+                      </span>
+
+                      <strong>
+                        {formatConfidence(
+                          selectedHistory.confidence
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        Score
+                        Uncertainty
+                      </span>
+
+                      <strong>
+                        {selectedHistory.score_uncertainty !==
+                          undefined &&
+                        selectedHistory.score_uncertainty !==
+                          null
+                          ? `±${Number(
+                              selectedHistory.score_uncertainty
+                            ).toFixed(
+                              1
+                            )}`
+                          : "N/A"}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        Dimensions
+                      </span>
+
+                      <strong>
+                        {selectedHistory
+                          .image
+                          ?.width !=
+                          null &&
+                        selectedHistory
+                          .image
+                          ?.height !=
+                          null
+                          ? `${selectedHistory.image.width} × ${selectedHistory.image.height}`
+                          : selectedHistory
+                              .image_statistics
+                              ?.width !=
+                              null &&
+                            selectedHistory
+                              .image_statistics
+                              ?.height !=
+                              null
+                          ? `${selectedHistory.image_statistics.width} × ${selectedHistory.image_statistics.height}`
+                          : "N/A"}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        Format
+                      </span>
+
+                      <strong>
+                        {selectedHistory
+                          .image
+                          ?.format ||
+                          selectedHistory.content_type
+                            ?.replace(
+                              "image/",
+                              ""
+                            )
+                            ?.toUpperCase() ||
+                          "N/A"}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        File Size
+                      </span>
+
+                      <strong>
+                        {formatFileSize(
+                          selectedHistory
+                            .image
+                            ?.size_bytes
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        Processing
+                      </span>
+
+                      <strong>
+                        {selectedHistory.processing_ms !==
+                          undefined &&
+                        selectedHistory.processing_ms !==
+                          null
+                          ? `${selectedHistory.processing_ms} ms`
+                          : "N/A"}
+                      </strong>
+                    </div>
+
+                    <div className="history-detail-card">
+                      <span>
+                        Model
+                      </span>
+
+                      <strong>
+                        {selectedHistory
+                          .ml_prediction
+                          ?.model_type ||
+                          "N/A"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="history-analysis-date">
+                    <span>
+                      Analyzed
+                    </span>
+
+                    <strong>
+                      {selectedHistory.created_at
+                        ? new Date(
+                            selectedHistory.created_at
+                          ).toLocaleString()
+                        : "N/A"}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* ISSUES */}
+
+              <div className="history-modal-section">
+                <div className="history-modal-section-title">
+                  <p className="eyebrow">
+                    QUALITY CHECK
+                  </p>
+
+                  <h3>
+                    Detected
+                    Issues
+                  </h3>
+                </div>
+
+                {getDetectedIssues(
+                  selectedHistory.issues
+                ).length >
+                0 ? (
+                  <div className="history-modal-issues">
+                    {getDetectedIssues(
+                      selectedHistory.issues
+                    ).map(
+                      (
+                        issue,
+                        index
+                      ) => (
+                        <div
+                          className="history-modal-issue"
+                          key={
+                            issue.name ||
+                            index
+                          }
+                        >
+                          <div>
+                            <strong>
+                              {getIssueName(
+                                issue,
+                                index
+                              )
+                                .replaceAll(
+                                  "_",
+                                  " "
+                                )
+                                .toUpperCase()}
+                            </strong>
+
+                            {issue.confidence !==
+                              undefined && (
+                              <p>
+                                Confidence:{" "}
+                                {formatConfidence(
+                                  issue.confidence
+                                )}
+                              </p>
+                            )}
+                          </div>
+
+                          {issue.severity && (
+                            <span
+                              className={`severity-badge severity-${String(
+                                issue.severity
+                              ).toLowerCase()}`}
+                            >
+                              {String(
+                                issue.severity
+                              ).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="success-box">
+                    No significant
+                    quality issues
+                    detected.
+                  </div>
+                )}
+              </div>
+
+              {/* STATISTICS */}
+
+              <div className="history-modal-section">
+                <div className="history-modal-section-title">
+                  <p className="eyebrow">
+                    TECHNICAL
+                    METRICS
+                  </p>
+
+                  <h3>
+                    Image
+                    Statistics
+                  </h3>
+                </div>
+
+                <div className="history-statistics-grid">
+                  {Object.entries(
+                    selectedHistory.image_statistics ||
+                      {}
+                  ).map(
+                    ([
+                      key,
+                      value,
+                    ]) => (
+                      <div
+                        className="history-stat-card"
+                        key={
+                          key
+                        }
+                      >
+                        <span>
+                          {formatLabel(
+                            key
+                          )}
+                        </span>
+
+                        <strong>
+                          {typeof value ===
+                          "number"
+                            ? value.toFixed(
+                                2
+                              )
+                            : value}
+                        </strong>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* FOOTER */}
+
+              <div className="history-modal-footer">
+                <div>
+                  <span>
+                    Analysis ID
+                  </span>
+
+                  <strong>
+                    {
+                      selectedHistory.id
+                    }
+                  </strong>
+                </div>
+
+                <button
+                  type="button"
+                  className="history-close-button"
+                  onClick={
+                    closeHistoryDetails
+                  }
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
