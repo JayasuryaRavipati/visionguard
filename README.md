@@ -1,509 +1,332 @@
-# 🛡️ VisionGuard
+# VisionGuard — AI-Powered Image Quality & Defect Detection
 
-## AI-Powered Image Quality & Defect Detection
+VisionGuard is a full-stack AI-powered image quality assessment application that automatically analyzes uploaded images, detects common image-quality problems, and classifies the overall image quality as **ACCEPTABLE**, **DEGRADED**, or **DEFECTIVE**.
 
-VisionGuard is a full-stack Computer Vision and Machine Learning application that automatically evaluates the visual quality of uploaded images.
-
-The system detects common image-quality problems such as blur, underexposure, overexposure, image noise, severe degradation, and potential visual defects. It combines traditional computer-vision feature extraction with a trained Machine Learning model to classify the overall image quality.
-
-### Quality Classes
-
-- **ACCEPTABLE** — Image quality is generally good
-- **DEGRADED** — Image contains noticeable quality degradation
-- **DEFECTIVE** — Image contains significant quality problems
-
-The application also provides an overall quality score, Machine Learning confidence, score uncertainty, image statistics, detected issues, and persistent analysis history.
+The project combines traditional computer vision techniques with a machine-learning decision component and provides a complete web interface, REST API, persistent analysis history, and Docker-based deployment.
 
 ---
 
-# ✨ Features
+## Features
 
-## 🔍 Image Quality Detection
-
-VisionGuard analyzes uploaded images for:
-
-- Blur / insufficient sharpness
-- Underexposure
-- Overexposure
-- Image noise
-- Severe image degradation
-- Potential visual defects
+- Upload and analyze images through a web interface
+- Blur / insufficient sharpness detection
+- Underexposure detection
+- Overexposure detection
+- Image noise estimation
+- Corruption / severe degradation detection
+- Potential visual defect detection
+- AI-based overall quality classification
+- Quality score from 0–100
+- ML prediction confidence
+- Score uncertainty estimation
+- Image statistics and quality metrics
+- Persistent analysis history
+- Previous image preview
+- Analysis processing-time tracking
+- REST API using FastAPI
+- SQLite persistence using SQLAlchemy
+- Dockerized frontend and backend
+- Nginx production frontend server and API reverse proxy
+- No external AI or vision APIs required
 
 ---
 
-## 🤖 AI-Based Quality Classification
-
-A trained **Random Forest Classifier** predicts the overall image quality using computer-vision features extracted from the image.
-
-The Machine Learning model returns:
-
-- Quality label
-- Quality score
-- Prediction confidence
-- Class probabilities
-- Score uncertainty
-
-Example:
+## System Architecture
 
 ```text
-Quality Score:      76.89 / 100
-Quality Label:      ACCEPTABLE
-ML Confidence:      52.1%
-Score Uncertainty:  ±26.59
+                    ┌─────────────────────┐
+                    │        User         │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ React + Vite UI     │
+                    │ Nginx in Docker     │
+                    │ Port: 8081          │
+                    └──────────┬──────────┘
+                               │
+                         /api requests
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ FastAPI Backend     │
+                    │ Port: 8000          │
+                    └──────────┬──────────┘
+                               │
+               ┌───────────────┼───────────────┐
+               │               │               │
+               ▼               ▼               ▼
+       ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+       │ Computer     │ │ RandomForest │ │ SQLAlchemy + │
+       │ Vision       │ │ ML Model     │ │ SQLite       │
+       └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
 ---
 
-## 📊 Explainable Image Statistics
+## Machine Learning Component
 
-The application displays interpretable image statistics including:
+VisionGuard includes a **Random Forest classifier** as its AI-based decision component.
 
-- Width
-- Height
-- Sharpness
-- Brightness
-- Contrast
-- Noise
-- Intensity standard deviation
-- Unique intensity values
+The model predicts one of three image-quality classes:
 
-The detailed inspection report also displays:
+- `ACCEPTABLE`
+- `DEGRADED`
+- `DEFECTIVE`
 
-- Image dimensions
-- Image format
-- File size
-- Processing time
-- ML model information
+### Model Features
 
----
-
-## 🕘 Analysis History
-
-Completed analyses are stored in a SQLite database.
-
-The Analysis History dashboard displays:
-
-- Filename
-- Quality score
-- Quality status
-- ML confidence
-- Score uncertainty
-- Detected issues
-- Analysis timestamp
-
-Clicking a history record opens a detailed inspection report containing the original image and its complete analysis information.
-
----
-
-# 🏗️ System Architecture
-
-VisionGuard uses a hybrid **Computer Vision + Machine Learning** architecture.
-
-```text
-                    ┌─────────────────┐
-                    │      User       │
-                    └────────┬────────┘
-                             │
-                             │ Upload Image
-                             ▼
-                    ┌─────────────────┐
-                    │ React Frontend  │
-                    │      Vite       │
-                    └────────┬────────┘
-                             │
-                             │ HTTP / REST
-                             ▼
-                    ┌─────────────────┐
-                    │ FastAPI Backend │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │ Image Validation│
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │     OpenCV      │
-                    │ Feature Extract │
-                    └────────┬────────┘
-                             │
-               ┌─────────────┴─────────────┐
-               │                           │
-               ▼                           ▼
-      ┌─────────────────┐        ┌─────────────────┐
-      │ CV Issue        │        │ Random Forest   │
-      │ Detection       │        │ ML Classifier   │
-      └────────┬────────┘        └────────┬────────┘
-               │                           │
-               └─────────────┬─────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │ Quality Result  │
-                    └────────┬────────┘
-                             │
-                  ┌──────────┴──────────┐
-                  │                     │
-                  ▼                     ▼
-          ┌──────────────┐      ┌──────────────┐
-          │   SQLite     │      │   React UI   │
-          │ Persistence  │      │ Visualization│
-          └──────────────┘      └──────────────┘
-```
-
----
-
-# 🧠 Machine Learning
-
-## Model
-
-VisionGuard uses a:
-
-```text
-RandomForestClassifier
-```
-
-for overall image-quality classification.
-
-The model predicts one of three classes:
-
-```text
-ACCEPTABLE
-DEGRADED
-DEFECTIVE
-```
-
-The classifier also generates a probability for each class.
-
-Example:
-
-```json
-{
-  "ACCEPTABLE": 0.5212,
-  "DEGRADED": 0.3798,
-  "DEFECTIVE": 0.0989
-}
-```
-
-The class with the highest probability becomes the predicted quality label.
-
----
-
-# 🧮 ML Features
-
-The Machine Learning model uses **9 engineered features** extracted from the image:
+The model uses nine numerical image features:
 
 1. Width
 2. Height
-3. Aspect Ratio
+3. Aspect ratio
 4. Sharpness
 5. Brightness
 6. Contrast
 7. Noise
-8. Intensity Standard Deviation
-9. Unique Intensity Values
+8. Intensity standard deviation
+9. Number of unique intensity values
 
-These features are extracted before being passed to the Random Forest classifier.
-
----
-
-# 📚 Model Training
-
-The model was trained using clean images together with synthetically degraded image samples.
-
-The training process introduces image-quality degradations so the classifier can learn the differences between acceptable, degraded, and defective images.
-
-The dataset was divided using a source-level split to reduce leakage between related clean and degraded samples.
-
-Dataset split used during model development:
-
-```text
-Training samples: 1040
-Testing samples:   260
-```
+These features are extracted from the uploaded image before being passed to the trained classifier.
 
 ---
 
-# 📈 Model Performance
+## Model Training
 
-The trained Random Forest model achieved:
+The model was trained using clean images from the **Caltech-101 dataset** together with synthetically degraded versions of the images.
+
+Synthetic degradation was used to generate examples containing image-quality problems such as:
+
+- Blur
+- Exposure degradation
+- Noise
+- Severe quality degradation
+
+A source-level train/test split was used to reduce the risk of closely related versions of the same source image appearing in both training and testing data.
+
+### Dataset Split
+
+| Dataset | Samples |
+|---|---:|
+| Training | 1040 |
+| Testing | 260 |
+
+---
+
+## Model Performance
+
+Evaluation on the held-out test set produced:
 
 | Metric | Score |
 |---|---:|
-| Accuracy | 72.31% |
-| Precision | 71.93% |
-| Recall | 72.31% |
-| F1 Score | 71.92% |
+| Accuracy | 0.7231 |
+| Precision | 0.7193 |
+| Recall | 0.7231 |
+| F1 Score | 0.7192 |
 
-These metrics are based on the held-out test dataset used during model development.
-
-> The model is designed as a practical image-quality classification component for this technical assessment. Performance may vary on image domains that differ significantly from the training data.
+These metrics reflect the current trained model and are not intended to represent production-level performance.
 
 ---
 
-# 🔄 Image Analysis Pipeline
+## Image Analysis Pipeline
 
-When an image is uploaded, VisionGuard follows this pipeline:
+When an image is uploaded, VisionGuard performs the following pipeline:
 
 ```text
-Upload Image
-      │
-      ▼
-Validate File Type & Size
-      │
-      ▼
-Decode Image
-      │
-      ▼
-Extract Computer Vision Features
-      │
-      ▼
-Detect Individual Quality Issues
-      │
-      ▼
-Build ML Feature Vector
-      │
-      ▼
+Image Upload
+     │
+     ▼
+File Validation
+     │
+     ▼
+Image Decoding
+     │
+     ▼
+Feature Extraction
+     │
+     ├── Sharpness
+     ├── Brightness
+     ├── Contrast
+     ├── Noise
+     ├── Dimensions
+     └── Intensity Statistics
+     │
+     ▼
+Computer Vision Quality Checks
+     │
+     ▼
 Random Forest Prediction
-      │
-      ▼
-Generate Class Probabilities
-      │
-      ▼
-Calculate Quality Score
-      │
-      ▼
-Calculate ML Confidence
-      │
-      ▼
-Calculate Score Uncertainty
-      │
-      ▼
+     │
+     ▼
+Quality Score Calculation
+     │
+     ▼
+ACCEPTABLE / DEGRADED / DEFECTIVE
+     │
+     ▼
 Store Analysis in SQLite
-      │
-      ▼
-Return Results to React Frontend
+     │
+     ▼
+Return Result to Frontend
 ```
 
 ---
 
-# 🖼️ Computer Vision Analysis
+## Quality Score
 
-## Blur Detection
-
-VisionGuard analyzes image sharpness to identify images that may be blurred or insufficiently focused.
-
-Possible causes include:
-
-- Motion blur
-- Out-of-focus capture
-- Loss of fine image details
-
----
-
-## Underexposure Detection
-
-Image brightness characteristics are analyzed to detect images that are excessively dark.
-
----
-
-## Overexposure Detection
-
-Brightness characteristics are also analyzed to detect images that are excessively bright or washed out.
-
----
-
-## Noise Detection
-
-Image characteristics are evaluated to identify excessive visual noise that can reduce image quality.
-
----
-
-## Severe Degradation Detection
-
-Multiple image-quality signals are considered to identify heavily degraded images.
-
----
-
-## Potential Visual Defect Detection
-
-The system also provides a potential visual-defect indicator based on available image-quality measurements.
-
-This is intended as a general quality signal rather than a domain-specific industrial defect detector.
-
----
-
-# 💯 Quality Score
-
-Every analyzed image receives an overall quality score between:
+The overall quality score is calculated using the class probabilities produced by the ML model.
 
 ```text
-0 - 100
+Quality Score =
+    P(ACCEPTABLE) × 100
+  + P(DEGRADED) × 60
+  + P(DEFECTIVE) × 20
 ```
 
-Higher scores indicate better overall image quality.
-
-The quality score is calculated using the Machine Learning class probabilities.
-
-Conceptually:
-
-```text
-ACCEPTABLE probability → high quality contribution
-DEGRADED probability   → medium quality contribution
-DEFECTIVE probability  → low quality contribution
-```
+The resulting score is presented on a 0–100 scale.
 
 ---
 
-# 🎯 ML Confidence
+## Confidence and Score Uncertainty
 
-The application displays the confidence associated with the model's predicted class.
+The ML confidence displayed by VisionGuard is the probability associated with the model's predicted class.
 
-Example:
+For example:
 
 ```text
-Prediction:
-ACCEPTABLE
-
-Confidence:
-52.1%
+Model confidence = 0.5212
+Displayed confidence = 52.12%
 ```
 
-A higher confidence indicates that the classifier assigned a larger probability to its selected class.
+VisionGuard also calculates a score uncertainty value based on the probability distribution across the three quality classes.
+
+The uncertainty represents the standard deviation of the class-score distribution around the calculated quality score.
+
+It should be interpreted as uncertainty in **quality-score points**, rather than as a calibrated statistical confidence interval.
 
 ---
 
-# 📐 Score Uncertainty
+## Computer Vision Analysis
 
-VisionGuard also reports score uncertainty.
+### Blur / Sharpness
 
-Example:
+The application evaluates image sharpness to identify images that may be blurry or insufficiently focused.
 
-```text
-Quality Score:
-76.89
+### Underexposure
 
-Score Uncertainty:
-±26.59
-```
+Brightness statistics are analyzed to identify images that are excessively dark.
 
-The uncertainty is derived from the spread of the Machine Learning class-probability distribution across the quality-score levels.
+### Overexposure
 
-It provides additional context about how strongly the model distinguishes between possible quality outcomes.
+The intensity distribution is analyzed to detect excessively bright or washed-out images.
 
-> Score uncertainty should not be interpreted as a statistically calibrated confidence interval.
+### Noise
+
+Image statistics are used to estimate the presence of excessive image noise.
+
+### Corruption / Severe Degradation
+
+The backend validates whether an uploaded file can be successfully decoded as an image and evaluates extracted statistics for signs of severe degradation.
+
+### Potential Visual Defects
+
+Multiple quality signals and the ML prediction are combined to identify images that may contain significant visual-quality defects.
 
 ---
 
-# 🛠️ Technology Stack
+## Technology Stack
 
-## Frontend
+### Frontend
 
 - React
 - Vite
 - JavaScript
-- HTML5
-- CSS3
-- Fetch API
+- CSS
+- Nginx
 
-## Backend
+### Backend
 
 - Python
 - FastAPI
 - Uvicorn
-- SQLAlchemy
-
-## Computer Vision
-
 - OpenCV
+- Pillow
 - NumPy
 
-## Machine Learning
+### Machine Learning
 
 - Scikit-learn
-- Random Forest Classifier
+- Random Forest
 - Joblib
 
-## Database
+### Database
 
 - SQLite
+- SQLAlchemy
 
-## Development & Deployment
+### Deployment
 
-- Git
-- GitHub
 - Docker
 - Docker Compose
 - Nginx
 
 ---
 
-# 📁 Project Structure
+## Project Structure
 
 ```text
-image-quality-ai/
+visionguard/
 │
 ├── backend/
-│   │
 │   ├── app/
-│   │   │
 │   │   ├── api/
 │   │   │   └── routes.py
-│   │   │
-│   │   ├── cv/
-│   │   │   └── features.py
 │   │   │
 │   │   ├── database/
 │   │   │   ├── database.py
 │   │   │   └── models.py
-│   │   │
-│   │   ├── ml/
-│   │   │   └── predictor.py
 │   │   │
 │   │   ├── services/
 │   │   │   └── analyzer.py
 │   │   │
 │   │   └── main.py
 │   │
-│   ├── uploads/
 │   ├── requirements.txt
 │   └── Dockerfile
 │
 ├── frontend/
-│   │
 │   ├── src/
 │   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── main.jsx
+│   │   └── ...
 │   │
+│   ├── nginx.conf
 │   ├── package.json
-│   ├── vite.config.js
 │   └── Dockerfile
 │
+├── ml/
+│   └── models/
+│       └── trained model files
+│
 ├── docker-compose.yml
-├── README.md
-└── .gitignore
+├── .gitignore
+└── README.md
 ```
 
-> The repository may contain additional model-training, dataset, configuration, and utility files.
-
 ---
 
-# 🚀 Quick Start — Docker
+# Running the Project with Docker
 
-The easiest way to run the complete VisionGuard application is with **Docker Compose**.
-
-Docker starts both the frontend and backend services without requiring you to manually configure separate Python and Node.js environments.
-
----
+Docker Compose is the recommended way to run VisionGuard.
 
 ## Prerequisites
 
 Install:
 
-- Git
 - Docker Desktop
+- Git
 
-Make sure Docker Desktop is running before executing the commands below.
+Make sure Docker Desktop is running.
 
 ---
 
@@ -511,41 +334,30 @@ Make sure Docker Desktop is running before executing the commands below.
 
 ```bash
 git clone https://github.com/JayasuryaRavipati/image-quality-ai.git
-```
-
-Enter the project:
-
-```bash
 cd image-quality-ai
 ```
 
 ---
 
-## 2. Build and Start VisionGuard
-
-Run:
+## 2. Build and Start the Application
 
 ```bash
 docker compose up --build
 ```
 
-Docker Compose will build and start the frontend and backend containers.
-
-The first build may take several minutes because Docker needs to download and install the required dependencies.
+Wait until the backend reports that Uvicorn is running and the frontend Nginx container has started.
 
 ---
 
 ## 3. Open the Application
 
-Once the containers are running, open:
-
 ### Frontend
 
 ```text
-http://localhost:8080
+http://localhost:8081
 ```
 
-### Backend
+### Backend API
 
 ```text
 http://localhost:8000
@@ -557,27 +369,17 @@ http://localhost:8000
 http://localhost:8000/docs
 ```
 
-### Backend Health Check
+### Health Endpoint
 
 ```text
 http://localhost:8000/health
 ```
 
----
-
-## 4. Check Container Status
-
-Run:
-
-```bash
-docker compose ps
-```
-
-You should see the frontend and backend containers running.
+> **Important:** The Docker frontend is exposed on port **8081**.
 
 ---
 
-## 5. Stop the Application
+## 4. Stop the Application
 
 Press:
 
@@ -585,98 +387,55 @@ Press:
 Ctrl + C
 ```
 
-in the terminal running Docker Compose.
-
 Then run:
 
 ```bash
 docker compose down
 ```
 
----
-
-## Rebuild After Code Changes
-
-If application code or dependencies change, rebuild the containers:
+To remove Docker volumes as well:
 
 ```bash
-docker compose down
-docker compose up --build
+docker compose down -v
 ```
 
 ---
 
-# 💻 Manual Installation
+# Running Without Docker
 
-If you do not want to use Docker, the frontend and backend can also be started manually.
+## Backend Setup
 
----
-
-# 🐍 Backend Setup
-
-## 1. Clone the Repository
-
-```bash
-git clone https://github.com/JayasuryaRavipati/image-quality-ai.git
-```
-
-Enter the project:
-
-```bash
-cd image-quality-ai
-```
-
-Move to the backend:
+Open a terminal and move to the backend directory:
 
 ```bash
 cd backend
 ```
 
----
-
-## 2. Create a Python Virtual Environment
-
-### Windows
+Create a virtual environment:
 
 ```bash
 python -m venv venv
 ```
 
-Activate:
+### Windows
 
 ```bash
 venv\Scripts\activate
 ```
 
-### Linux / macOS
-
-```bash
-python3 -m venv venv
-```
-
-Activate:
-
-```bash
-source venv/bin/activate
-```
-
----
-
-## 3. Install Backend Dependencies
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 4. Start the Backend
+Start FastAPI:
 
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
-The backend should now be available at:
+Backend:
 
 ```text
 http://127.0.0.1:8000
@@ -688,21 +447,11 @@ Swagger:
 http://127.0.0.1:8000/docs
 ```
 
-Health check:
-
-```text
-http://127.0.0.1:8000/health
-```
-
-Keep this terminal running.
-
 ---
 
-# ⚛️ Frontend Setup
+## Frontend Setup
 
-Open a **new terminal** from the project root.
-
-Move into the frontend directory:
+Open another terminal:
 
 ```bash
 cd frontend
@@ -720,281 +469,103 @@ Start the Vite development server:
 npm run dev
 ```
 
-The frontend should now be available at:
+Use the URL displayed by Vite in the terminal.
 
-```text
-http://localhost:5173
-```
-
-Open that address in your browser.
+> The Vite development-server port and the Docker/Nginx frontend port are separate configurations. The Docker deployment uses **8081**.
 
 ---
 
-# 🧪 How to Use VisionGuard
+# Using VisionGuard
 
-After starting the application:
-
-1. Open the VisionGuard frontend.
-2. Click **Upload Image**.
-3. Select a JPEG, PNG, or WEBP image.
-4. Click **Analyze**.
-5. Wait for the image-analysis pipeline to complete.
-6. Review the overall quality score.
-7. Review the quality classification.
-8. Check the ML confidence and score uncertainty.
-9. Review detected image-quality issues.
-10. Review image statistics and ML probabilities.
-11. Scroll to **Analysis History** to see previous results.
-12. Click a history record to open its detailed inspection report.
+1. Start the application.
+2. Open the frontend.
+3. Upload a supported image.
+4. Click the analyze button.
+5. Wait for the backend to process the image.
+6. Review the quality score and classification.
+7. Review detected quality issues.
+8. Check ML confidence and image statistics.
+9. Open the History section to review previous analyses.
 
 ---
 
-# 📤 Supported Uploads
+# REST API
 
-Supported formats:
-
-```text
-JPEG
-PNG
-WEBP
-```
-
-Supported MIME types:
-
-```text
-image/jpeg
-image/png
-image/webp
-```
-
-Maximum upload size:
-
-```text
-10 MB
-```
-
----
-
-# 🔌 REST API
-
-FastAPI automatically provides interactive API documentation at:
-
-```text
-http://localhost:8000/docs
-```
-
----
-
-## Analyze an Image
+## Analyze Image
 
 ```http
 POST /api/analyze
 ```
 
-Request type:
+Uploads an image and performs image-quality analysis.
 
-```text
-multipart/form-data
-```
-
-Form field:
-
-```text
-file
-```
-
-Example with cURL:
-
-```bash
-curl -X POST \
-  "http://127.0.0.1:8000/api/analyze" \
-  -H "accept: application/json" \
-  -F "file=@example.jpg;type=image/jpeg"
-```
-
----
-
-## Example Analysis Response
+The result contains information such as:
 
 ```json
 {
-  "id": 13,
+  "id": 1,
   "filename": "example.jpg",
   "content_type": "image/jpeg",
-  "image_url": "/api/history/13/image",
+  "image_url": "/api/history/1/image",
   "quality_score": 76.89,
   "quality_label": "ACCEPTABLE",
   "confidence": 0.5212,
   "score_uncertainty": 26.59,
-  "processing_ms": 5055,
-  "image": {
-    "filename": "example.jpg",
-    "content_type": "image/jpeg",
-    "size_bytes": 6630,
-    "width": 222,
-    "height": 148,
-    "format": "JPEG"
-  },
-  "analysis": {
-    "quality_score": 76.89,
-    "quality_label": "ACCEPTABLE",
-    "confidence": 0.5212,
-    "score_uncertainty": 26.59,
-    "ml_prediction": {
-      "label": "ACCEPTABLE",
-      "confidence": 0.5212,
-      "probabilities": {
-        "ACCEPTABLE": 0.5212,
-        "DEGRADED": 0.3798,
-        "DEFECTIVE": 0.0989
-      },
-      "model_type": "RandomForestClassifier",
-      "model_version": "1.0.0"
-    }
-  }
+  "processing_ms": 5055
 }
 ```
 
 ---
 
-# 📜 Get Analysis History
+## Get Analysis History
 
 ```http
 GET /api/history
 ```
 
-Optional limit:
-
-```text
-/api/history?limit=20
-```
-
-The endpoint returns recent analysis records stored in SQLite.
+Returns previously stored image-analysis records.
 
 ---
 
-# 🔎 Get Analysis Details
+## Get Analysis Details
 
 ```http
 GET /api/history/{analysis_id}
 ```
 
-Example:
-
-```text
-/api/history/13
-```
-
-This endpoint returns the complete stored analysis for the selected record.
+Returns detailed information for a specific analysis.
 
 ---
 
-# 🖼️ Get Stored Analysis Image
+## Get Stored Image
 
 ```http
 GET /api/history/{analysis_id}/image
 ```
 
-Example:
-
-```text
-/api/history/13/image
-```
-
-This endpoint returns the original uploaded image associated with the selected analysis.
+Returns the image associated with a stored analysis record.
 
 ---
 
-# ❤️ Health Check
+## Health Check
 
 ```http
 GET /health
 ```
 
-Example:
-
-```text
-http://localhost:8000/health
-```
-
-This can be used to verify that the backend service is running.
+Used to verify that the backend service is running.
 
 ---
 
-# 📊 Example Analysis Result
+# Database Persistence
 
-A typical analysis can produce:
+VisionGuard uses **SQLite** for local persistence and **SQLAlchemy** as the ORM layer.
 
-```text
-Filename:            example.jpg
-
-Quality Score:       76.89 / 100
-Quality Label:       ACCEPTABLE
-
-ML Confidence:       52.1%
-Score Uncertainty:   ±26.59
-
-Dimensions:          222 × 148
-Format:              JPEG
-File Size:           6.47 KB
-Processing Time:     5055 ms
-
-Detected Issues:
-Noise - Low Severity
-```
-
-Example ML probabilities:
-
-```text
-ACCEPTABLE    52.12%
-DEGRADED      37.98%
-DEFECTIVE      9.89%
-```
-
----
-
-# 🔍 Example Quality Issue
-
-An individual quality check can look like:
-
-```json
-{
-  "noise": {
-    "detected": true,
-    "severity": "low",
-    "confidence": 0.55
-  }
-}
-```
-
-The current analysis pipeline checks:
-
-```text
-blur
-underexposure
-overexposure
-noise
-severe_degradation
-potential_visual_defect
-```
-
----
-
-# 💾 Database Persistence
-
-VisionGuard uses:
-
-```text
-SQLite + SQLAlchemy
-```
-
-to store completed analyses.
-
-Stored information includes:
+Each analysis record can store:
 
 - Filename
 - Content type
-- Image path
+- Stored image path
 - File size
 - Quality score
 - Quality label
@@ -1003,340 +574,244 @@ Stored information includes:
 - Processing time
 - Detected issues
 - Image statistics
-- ML prediction
-- Analysis timestamp
+- ML prediction information
+- Creation timestamp
 
-Uploaded images are stored separately and linked to their corresponding database records.
-
----
-
-# 🔐 Image Validation
-
-Before analysis, the backend validates the uploaded file.
-
-Validation includes:
-
-### File Type
-
-Only:
-
-```text
-JPEG
-PNG
-WEBP
-```
-
-are accepted.
-
-### File Size
-
-Maximum:
-
-```text
-10 MB
-```
-
-### Image Decoding
-
-The backend attempts to decode the uploaded image before processing.
-
-Empty, invalid, unsupported, or unreadable files are rejected with an appropriate HTTP error response.
+SQLAlchemy provides the communication layer between the FastAPI application and SQLite.
 
 ---
 
-# 💡 Why Computer Vision + Machine Learning?
+# Nginx
 
-A traditional threshold-only computer-vision system may detect individual quality characteristics, but it does not provide a learned overall quality decision.
+In the Dockerized application, Nginx is used to:
 
-VisionGuard combines:
+- Serve the production React build
+- Handle frontend requests
+- Reverse proxy `/api` requests to the FastAPI backend
 
-```text
-Computer Vision
-       +
-Feature Engineering
-       +
-Machine Learning
-       =
-Image Quality Classification
-```
-
-Computer Vision provides interpretable measurements such as:
-
-- Sharpness
-- Brightness
-- Contrast
-- Noise
-
-Machine Learning combines these features to predict the overall image-quality class.
-
-This allows the application to provide both:
-
-```text
-Interpretable quality measurements
-+
-Data-driven overall classification
-```
+This allows the React frontend to communicate with the backend while both applications run as separate Docker services.
 
 ---
 
-# 🌲 Why Random Forest?
+# Docker Architecture
 
-Random Forest was selected because it is suitable for structured numerical image features.
+The Docker setup contains two primary application containers:
 
-Advantages include:
+```text
+Browser
+   │
+   ▼
+localhost:8081
+   │
+   ▼
+Nginx / React Frontend
+   │
+   │ /api/*
+   ▼
+FastAPI Backend
+   │
+   ▼
+Computer Vision + ML
+   │
+   ▼
+SQLAlchemy
+   │
+   ▼
+SQLite
+```
 
-- Handles non-linear relationships
-- Works well with engineered numerical features
-- Captures interactions between features
-- Supports class-probability predictions
-- Fast inference
-- Relatively robust
-- Easy to integrate into a Python backend
-- Lightweight compared with large deep-learning architectures
+Docker Compose manages the frontend, backend, networking, and persistent data volume.
 
 ---
 
-# ⚡ Why FastAPI?
+# External AI Services
+
+VisionGuard does **not** rely on external AI or computer-vision APIs.
+
+Image processing and prediction are performed locally using:
+
+- OpenCV
+- NumPy
+- Scikit-learn
+- A locally trained Random Forest model
+
+Therefore, no external AI API key is required.
+
+---
+
+# Design Decisions
+
+### Why Random Forest?
+
+Random Forest was selected because the current system uses structured numerical image-quality features.
+
+It provides:
+
+- Non-linear decision boundaries
+- Multi-class classification
+- Probability estimates
+- Good performance on structured/tabular features
+- Relatively fast CPU inference
+
+### Why Combine ML and Computer Vision?
+
+Traditional computer-vision metrics provide interpretable information such as brightness, sharpness, and noise.
+
+The ML model provides an additional learned decision component that combines several extracted features to predict the overall quality class.
+
+This hybrid design keeps the system interpretable while satisfying the requirement for an AI-based quality decision component.
+
+### Why FastAPI?
 
 FastAPI provides:
 
-- Python-based REST API development
-- File upload handling
+- Fast API development
 - Request validation
-- Automatic OpenAPI generation
-- Interactive Swagger documentation
-- Simple integration with OpenCV
-- Simple integration with Scikit-learn
-- High development speed
+- File-upload support
+- Automatic Swagger documentation
+- Good Python ML integration
+
+### Why SQLAlchemy?
+
+SQLAlchemy provides an ORM layer between FastAPI and SQLite and makes analysis records easier to create, query, and maintain.
+
+### Why Nginx?
+
+Nginx serves the optimized production frontend build and acts as the reverse proxy between the browser and FastAPI backend in the Docker environment.
 
 ---
 
-# ⚛️ Why React?
-
-React provides a responsive frontend for:
-
-- Image upload
-- Image preview
-- Quality results
-- ML confidence
-- Score uncertainty
-- Quality issue visualization
-- ML probability visualization
-- Image statistics
-- Analysis history
-- Detailed inspection reports
-
----
-
-# 🚫 External AI Services
-
-VisionGuard does **not** rely on external AI or Computer Vision APIs for image-quality analysis.
-
-The Computer Vision processing and Machine Learning inference run within the application.
-
-Therefore:
-
-```text
-No external AI API is required.
-No external vision API is required.
-No AI API key is required.
-```
-
----
-
-# ⚠️ Limitations
+# Limitations
 
 The current implementation has several limitations:
 
-- Image quality is partly subjective.
-- The model was trained using a limited dataset and degradation strategy.
-- Performance may vary across different image domains.
-- Prediction confidence does not guarantee correctness.
-- Score uncertainty is derived from the classifier probability distribution and is not a calibrated statistical confidence interval.
-- Potential visual-defect detection is a general quality indicator rather than a specialized industrial defect-detection model.
-- Quality thresholds may require tuning for specific domains.
-- Processing time depends on hardware and image size.
+- The model is trained on a limited dataset.
+- Synthetic degradation may not represent every real-world defect.
+- The Random Forest model operates on engineered numerical features rather than raw image pixels.
+- The quality score is application-defined rather than an industry-standard perceptual quality score.
+- Model confidence should not be interpreted as a fully calibrated statistical probability.
+- Score uncertainty is based on the model class-probability distribution and is not a formal confidence interval.
 
 ---
 
-# 🔮 Future Improvements
+# Future Improvements
 
-Possible improvements include:
+Possible future improvements include:
 
-- CNN-based image-quality classification
-- Transfer learning
-- Deep-learning-based defect detection
-- Defect localization
-- Image heatmaps
-- Explainable AI visualization
-- Advanced anomaly detection
-- Larger training datasets
-- More diverse degradation types
-- Probability calibration
-- Batch image analysis
-- Drag-and-drop multi-image upload
-- User authentication
-- PostgreSQL support
-- Cloud object storage
-- Model monitoring
-- Automated model retraining
-- CI/CD pipeline
-- Cloud deployment
+- Train on a larger real-world defect dataset
+- Add CNN-based image-quality classification
+- Add defect localization
+- Add segmentation for defective regions
+- Add explainable visual heatmaps
+- Improve probability calibration
+- Add additional image-quality metrics
+- Add authentication and user-specific history
+- Add cloud deployment
+- Add automated model retraining and evaluation pipelines
+- Add database migrations for production schema management
 
 ---
 
-# 🧰 Troubleshooting
+# Troubleshooting
 
-## Docker containers do not start
+## Frontend Does Not Open
 
-Check Docker Desktop and make sure it is running.
-
-Then execute:
-
-```bash
-docker compose down
-docker compose up --build
-```
-
----
-
-## Check container status
+Confirm the containers are running:
 
 ```bash
 docker compose ps
 ```
 
----
+For the Docker deployment, open:
 
-## View Docker logs
-
-```bash
-docker compose logs
-```
-
-Backend logs:
-
-```bash
-docker compose logs backend
-```
-
-Frontend logs:
-
-```bash
-docker compose logs frontend
+```text
+http://localhost:8081
 ```
 
 ---
 
-## Backend does not start manually
+## Backend Does Not Respond
 
-Make sure the virtual environment is activated.
-
-Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-Then reinstall dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start the backend again:
-
-```bash
-python -m uvicorn app.main:app --reload
-```
-
----
-
-## Frontend does not start
-
-Run:
-
-```bash
-npm install
-npm run dev
-```
-
----
-
-## Verify Backend
-
-Open:
+Check:
 
 ```text
 http://localhost:8000/health
 ```
 
-or:
+View backend logs:
 
-```text
-http://localhost:8000/docs
+```bash
+docker compose logs backend
 ```
 
-If Swagger loads correctly, the backend is running.
+---
+
+## Database Schema Problems
+
+During development, if an old Docker volume contains an incompatible SQLite schema, stop the containers and remove the development volume:
+
+```bash
+docker compose down -v
+```
+
+Then rebuild and start:
+
+```bash
+docker compose up --build
+```
+
+> Removing the volume deletes locally stored analysis history, so this should only be done when resetting development data is acceptable.
 
 ---
 
-# 🎓 Key Learning Outcomes
+## Rebuild Without Docker Cache
 
-This project demonstrates practical experience with:
+If Docker appears to be using stale application files:
 
-- Computer Vision
-- Image Processing
-- Feature Engineering
-- Machine Learning Classification
-- Model Training
-- Model Evaluation
-- Model Inference
-- OpenCV
-- Scikit-learn
-- FastAPI
-- React
-- REST API Development
-- SQLAlchemy
-- SQLite
-- Image Upload and Storage
-- Full-Stack Integration
-- Docker
-- Docker Compose
-- Nginx
-- Git
-- GitHub
+```bash
+docker compose build --no-cache
+docker compose up
+```
 
 ---
 
-# 👨‍💻 Author
+# Assessment Requirements Covered
 
-**Jaya Surya Ravipati**
+| Requirement | Implementation |
+|---|---|
+| Blur detection | Computer vision sharpness analysis |
+| Underexposure | Brightness/intensity analysis |
+| Overexposure | Brightness/intensity analysis |
+| Noise | Image noise estimation |
+| Corruption / severe degradation | Validation and quality analysis |
+| Potential visual defect | Combined CV + ML analysis |
+| AI decision component | Random Forest classifier |
+| Backend | FastAPI |
+| Frontend | React + Vite |
+| Database | SQLite + SQLAlchemy |
+| Deployment | Docker + Nginx |
+| External AI services | Not used |
+| API keys | Not required |
 
+---
+
+# Author
+
+**Jaya Surya Ravipati**  
 B.Tech — Information Technology
 
 GitHub: `JayasuryaRavipati`
 
 ---
 
-# 📄 Project Purpose
+## Repository
 
-VisionGuard was developed as part of an **Internship Applicant Technical Assessment** focused on:
-
-- Computer Vision
-- Machine Learning / Deep Learning
-- Backend Development
-- Frontend Development
-- Deployment
-
-The objective was to build a working and deployable full-stack AI application that automatically evaluates image quality without relying on external AI or vision APIs.
+```text
+https://github.com/JayasuryaRavipati/image-quality-ai
+```
 
 ---
 
-# 🛡️ VisionGuard
+## License
 
-### AI-Powered Image Quality & Defect Detection
-
-Built with:
-
-**React • FastAPI • OpenCV • Scikit-learn • SQLite • Docker**
+This project was developed as part of an internship technical assessment and is intended primarily for educational and evaluation purposes.
