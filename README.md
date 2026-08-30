@@ -360,19 +360,19 @@ http://localhost:8081
 ### Backend API
 
 ```text
-http://localhost:8000
+http://localhost:8001
 ```
 
 ### Swagger API Documentation
 
 ```text
-http://localhost:8000/docs
+http://localhost:8001/docs
 ```
 
 ### Health Endpoint
 
 ```text
-http://localhost:8000/health
+http://localhost:8001/health
 ```
 
 > **Important:** The Docker frontend is exposed on port **8081**.
@@ -438,13 +438,13 @@ python -m uvicorn app.main:app --reload
 Backend:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8001
 ```
 
 Swagger:
 
 ```text
-http://127.0.0.1:8000/docs
+http://127.0.0.1:8001/docs
 ```
 
 ---
@@ -735,7 +735,7 @@ http://localhost:8081
 Check:
 
 ```text
-http://localhost:8000/health
+http://localhost:8001/health
 ```
 
 View backend logs:
