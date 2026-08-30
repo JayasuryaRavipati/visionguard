@@ -50,7 +50,7 @@ The project combines traditional computer vision techniques with a machine-learn
                                ▼
                     ┌─────────────────────┐
                     │ FastAPI Backend     │
-                    │ Port: 8000          │
+                    │ Port: 8001          │
                     └──────────┬──────────┘
                                │
                ┌───────────────┼───────────────┐
